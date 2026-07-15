@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Search, Filter, MapPin, Star, 
   X, SlidersHorizontal, Heart,
-  Clock, Calendar, Award, Users, BookOpen,
-  ChevronDown, ChevronUp, Shield, Sparkles,
-  Bookmark, MessageCircle, Eye, ThumbsUp,
-  Briefcase, GraduationCap, Home, Music,
+  Calendar, Shield, Sparkles,
+  Bookmark, MessageCircle, ThumbsUp,
+  Users, Briefcase, Menu,
   Code, Palette, Dumbbell, Languages, Wrench,
-  Coffee, Utensils, Globe, Camera, Book
+  Utensils, Music
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import Sidebar from '../components/Sidebar'
 
 // Pakistani Data with more listings
 const allListings = [
@@ -307,6 +306,94 @@ const sortOptions = [
   { id: 'students', label: 'Most Students' }
 ]
 
+// Bookmarked listings view component
+const BookmarkedListings = ({ savedItems, listings, onRemove, onMessage }) => {
+  const bookmarkedListings = listings.filter(item => savedItems.includes(item.id))
+
+  if (bookmarkedListings.length === 0) {
+    return (
+      <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
+        <div className="w-20 h-20 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Bookmark size={32} className="text-violet-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900">No bookmarks yet</h3>
+        <p className="text-gray-500 mt-2">Save listings you're interested in by clicking the heart icon</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {bookmarkedListings.map((item, index) => (
+        <motion.div
+          key={item.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.05 }}
+          className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group"
+        >
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
+                item.type === 'offer' 
+                  ? 'bg-emerald-50 text-emerald-700' 
+                  : 'bg-blue-50 text-blue-700'
+              }`}>
+                {item.type === 'offer' ? (
+                  <ThumbsUp size={12} />
+                ) : (
+                  <MessageCircle size={12} />
+                )}
+                {item.type === 'offer' ? 'Offer' : 'Request'}
+              </span>
+              <button
+                onClick={() => onRemove(item.id)}
+                className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 transition"
+              >
+                <Heart size={18} fill="currentColor" />
+              </button>
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-1.5">{item.title}</h3>
+            <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">{item.description}</p>
+
+            <div className="flex items-center gap-3 mt-3 text-sm text-gray-500">
+              <span className="flex items-center gap-1">
+                <MapPin size={14} className="text-violet-500" />
+                {item.location}
+              </span>
+              <span className="flex items-center gap-1 bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                {item.distance} km
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                  {item.teacher.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{item.teacher}</p>
+                  <div className="flex items-center gap-1">
+                    <Star size={13} className="text-amber-400 fill-amber-400" />
+                    <span className="text-sm font-semibold text-gray-700">{item.rating}</span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => onMessage(item)}
+                className="px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition shadow-sm hover:shadow-md"
+              >
+                Message
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
 function Browse() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -318,6 +405,8 @@ function Browse() {
   const [sortBy, setSortBy] = useState('newest')
   const [savedItems, setSavedItems] = useState([])
   const [selectedDistance, setSelectedDistance] = useState('all')
+  const [activeTab, setActiveTab] = useState('browse')
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const itemsPerPage = 6
 
   // Filter listings
@@ -388,259 +477,304 @@ function Browse() {
     )
   }
 
+  const handleNavigate = (tab) => {
+    setActiveTab(tab)
+    setIsMobileSidebarOpen(false)
+  }
+
+  const handleLogout = () => {
+    console.log('Logging out...')
+    // Add your logout logic here
+  }
+
   const CategoryIcon = ({ categoryId }) => {
     const cat = categories.find(c => c.id === categoryId)
     return cat ? <cat.icon size={14} /> : null
   }
 
-  return (
-    <div className="bg-gray-50 min-h-screen">
-      <Navbar />
+  // Render content based on active tab
+  const renderContent = () => {
+    if (activeTab === 'bookmarks') {
+      return (
+        <BookmarkedListings 
+          savedItems={savedItems} 
+          listings={allListings}
+          onRemove={toggleSave}
+          onMessage={(item) => console.log('Message:', item)}
+        />
+      )
+    }
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Browse Listings</h1>
-              <p className="text-gray-500 mt-1">Find skills to learn or people to connect with</p>
-            </div>
-            
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:w-80">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search skills, teachers, or keywords..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+    if (activeTab === 'my-listings') {
+      return (
+        <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
+          <div className="w-20 h-20 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <List size={32} className="text-violet-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900">My Listings</h3>
+          <p className="text-gray-500 mt-2">You haven't created any listings yet</p>
+          <button
+            onClick={() => handleNavigate('create')}
+            className="mt-4 px-4 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition text-sm font-medium"
+          >
+            Create your first listing
+          </button>
+        </div>
+      )
+    }
+
+    if (activeTab === 'profile') {
+      return (
+        <div className="bg-white rounded-3xl border border-gray-100 p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Profile</h2>
+          <p className="text-gray-500">Profile settings and information will appear here.</p>
+        </div>
+      )
+    }
+
+    if (activeTab === 'settings') {
+      return (
+        <div className="bg-white rounded-3xl border border-gray-100 p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
+          <p className="text-gray-500">Account settings and preferences will appear here.</p>
+        </div>
+      )
+    }
+
+    // Browse listings (default)
+    return (
+      <>
+        {/* Filters */}
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="py-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search skills, teachers, or keywords..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="lg:hidden p-2.5 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition"
+                >
+                  <SlidersHorizontal size={18} />
+                </button>
+              </div>
+
+              {/* Filters - Desktop */}
+              <div className="hidden lg:flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
+                  <Filter size={14} className="text-gray-400" />
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none text-gray-700 py-1"
                   >
-                    <X size={16} />
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
+                  <select
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none text-gray-700 py-1"
+                  >
+                    {types.map(type => (
+                      <option key={type.id} value={type.id}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
+                  <MapPin size={14} className="text-gray-400" />
+                  <select
+                    value={selectedDistance}
+                    onChange={(e) => setSelectedDistance(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none text-gray-700 py-1"
+                  >
+                    <option value="all">All Distances</option>
+                    <option value="2">Within 2 km</option>
+                    <option value="5">Within 5 km</option>
+                    <option value="10">Within 10 km</option>
+                    <option value="20">Within 20 km</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
+                  <span className="text-sm text-gray-500">Sort:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="bg-transparent text-sm focus:outline-none text-gray-700 font-medium py-1"
+                  >
+                    {sortOptions.map(option => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1 bg-gray-50 rounded-xl border border-gray-200 p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <div className="grid grid-cols-2 gap-0.5 w-4 h-4">
+                      <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
+                      <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
+                      <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
+                      <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-1.5 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <div className="flex flex-col gap-0.5 w-4 h-4">
+                      <div className="bg-current rounded-sm w-full h-1"></div>
+                      <div className="bg-current rounded-sm w-full h-1"></div>
+                      <div className="bg-current rounded-sm w-full h-1"></div>
+                    </div>
+                  </button>
+                </div>
+
+                {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all' || selectedDistance !== 'all') && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
+                  >
+                    <X size={14} />
+                    Clear filters
                   </button>
                 )}
               </div>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="lg:hidden p-2.5 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition"
-              >
-                <SlidersHorizontal size={18} />
-              </button>
+
+              {/* Mobile Filters */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="lg:hidden space-y-3"
+                  >
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    >
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.label}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedType}
+                      onChange={(e) => setSelectedType(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    >
+                      {types.map(type => (
+                        <option key={type.id} value={type.id}>{type.label}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedDistance}
+                      onChange={(e) => setSelectedDistance(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    >
+                      <option value="all">All Distances</option>
+                      <option value="2">Within 2 km</option>
+                      <option value="5">Within 5 km</option>
+                      <option value="10">Within 10 km</option>
+                      <option value="20">Within 20 km</option>
+                    </select>
+
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    >
+                      {sortOptions.map(option => (
+                        <option key={option.id} value={option.id}>{option.label}</option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={clearFilters}
+                      className="w-full text-center text-sm text-violet-600 font-medium py-2 border border-violet-200 rounded-xl hover:bg-violet-50 transition"
+                    >
+                      Clear all filters
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
+        </div>
 
-          {/* Filters - Desktop */}
-          <div className="hidden lg:flex flex-wrap items-center gap-3 mt-4">
-            {/* Category Filter */}
-            <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
-              <Filter size={14} className="text-gray-400" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none text-gray-700 py-1"
-              >
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.label}</option>
-                ))}
-              </select>
-            </div>
+        {/* Results */}
+        <div className="py-6">
+          {/* Results Count */}
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm text-gray-500">
+              Showing <span className="font-semibold text-gray-700">{filteredListings.length}</span> results
+            </p>
+            {filteredListings.length > 0 && (
+              <p className="text-sm text-gray-400">
+                Page {currentPage} of {totalPages}
+              </p>
+            )}
+          </div>
 
-            {/* Type Filter */}
-            <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none text-gray-700 py-1"
-              >
-                {types.map(type => (
-                  <option key={type.id} value={type.id}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Distance Filter */}
-            <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
-              <MapPin size={14} className="text-gray-400" />
-              <select
-                value={selectedDistance}
-                onChange={(e) => setSelectedDistance(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none text-gray-700 py-1"
-              >
-                <option value="all">All Distances</option>
-                <option value="2">Within 2 km</option>
-                <option value="5">Within 5 km</option>
-                <option value="10">Within 10 km</option>
-                <option value="20">Within 20 km</option>
-              </select>
-            </div>
-
-            {/* Sort */}
-            <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200">
-              <span className="text-sm text-gray-500">Sort:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent text-sm focus:outline-none text-gray-700 font-medium py-1"
-              >
-                {sortOptions.map(option => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 bg-gray-50 rounded-xl border border-gray-200 p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-600' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <div className="grid grid-cols-2 gap-0.5 w-4 h-4">
-                  <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
-                  <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
-                  <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
-                  <div className="bg-current rounded-sm w-1.5 h-1.5"></div>
-                </div>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-600' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                <div className="flex flex-col gap-0.5 w-4 h-4">
-                  <div className="bg-current rounded-sm w-full h-1"></div>
-                  <div className="bg-current rounded-sm w-full h-1"></div>
-                  <div className="bg-current rounded-sm w-full h-1"></div>
-                </div>
-              </button>
-            </div>
-
-            {(searchTerm || selectedCategory !== 'all' || selectedType !== 'all' || selectedDistance !== 'all') && (
+          {filteredListings.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
+              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Search size={32} className="text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">No listings found</h3>
+              <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
               <button
                 onClick={clearFilters}
-                className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
+                className="mt-4 text-violet-600 font-medium hover:underline inline-flex items-center gap-1"
               >
                 <X size={14} />
-                Clear filters
+                Clear all filters
               </button>
-            )}
-          </div>
-
-          {/* Mobile Filters */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="lg:hidden mt-4 space-y-3"
-              >
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.label}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  {types.map(type => (
-                    <option key={type.id} value={type.id}>{type.label}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedDistance}
-                  onChange={(e) => setSelectedDistance(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="all">All Distances</option>
-                  <option value="2">Within 2 km</option>
-                  <option value="5">Within 5 km</option>
-                  <option value="10">Within 10 km</option>
-                  <option value="20">Within 20 km</option>
-                </select>
-
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  {sortOptions.map(option => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={clearFilters}
-                  className="w-full text-center text-sm text-violet-600 font-medium py-2 border border-violet-200 rounded-xl hover:bg-violet-50 transition"
-                >
-                  Clear all filters
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-gray-500">
-            Showing <span className="font-semibold text-gray-700">{filteredListings.length}</span> results
-          </p>
-          {filteredListings.length > 0 && (
-            <p className="text-sm text-gray-400">
-              Page {currentPage} of {totalPages}
-            </p>
-          )}
-        </div>
-
-        {filteredListings.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
-            <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Search size={32} className="text-gray-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900">No listings found</h3>
-            <p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
-            <button
-              onClick={clearFilters}
-              className="mt-4 text-violet-600 font-medium hover:underline inline-flex items-center gap-1"
-            >
-              <X size={14} />
-              Clear all filters
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className={viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 gap-6'
-              : 'space-y-4'
-            }>
-              {currentListings.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ y: -4 }}
-                  className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group"
-                >
-                  {viewMode === 'grid' ? (
-                    // Grid View
-                    <>
+          ) : (
+            <>
+              <div className={viewMode === 'grid' 
+                ? 'grid grid-cols-1 md:grid-cols-2 gap-6'
+                : 'space-y-4'
+              }>
+                {currentListings.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -4 }}
+                    className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group"
+                  >
+                    {viewMode === 'grid' ? (
                       <div className="p-6">
-                        {/* Type Badge */}
                         <div className="flex items-center justify-between mb-3">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
                             item.type === 'offer' 
@@ -666,11 +800,9 @@ function Browse() {
                           </button>
                         </div>
 
-                        {/* Title */}
                         <h3 className="text-lg font-bold text-gray-900 mb-1.5 line-clamp-2">{item.title}</h3>
                         <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">{item.description}</p>
 
-                        {/* Tags */}
                         <div className="flex flex-wrap gap-1.5 mt-3">
                           {item.tags.slice(0, 3).map((tag, i) => (
                             <span key={i} className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
@@ -684,7 +816,6 @@ function Browse() {
                           )}
                         </div>
 
-                        {/* Location & Distance */}
                         <div className="flex items-center gap-3 mt-3 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <MapPin size={14} className="text-violet-500 flex-shrink-0" />
@@ -695,7 +826,6 @@ function Browse() {
                           </span>
                         </div>
 
-                        {/* Category & Availability */}
                         <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-500">
                           <span className="flex items-center gap-1 bg-gray-50 px-2.5 py-0.5 rounded-full text-xs">
                             <CategoryIcon categoryId={item.category.toLowerCase()} />
@@ -707,7 +837,6 @@ function Browse() {
                           </span>
                         </div>
 
-                        {/* Teacher & Rating */}
                         <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
                           <div className="flex items-center gap-2.5">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
@@ -722,17 +851,11 @@ function Browse() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <button className="px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition shadow-sm hover:shadow-md">
-                              Message
-                            </button>
-                            <button className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                              <Bookmark size={14} className="text-gray-500" />
-                            </button>
-                          </div>
+                          <button className="px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition shadow-sm hover:shadow-md">
+                            Message
+                          </button>
                         </div>
 
-                        {/* Stats */}
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50 text-xs text-gray-400">
                           <span className="flex items-center gap-1">
                             <Users size={12} />
@@ -748,131 +871,217 @@ function Browse() {
                           </span>
                         </div>
                       </div>
-                    </>
-                  ) : (
-                    // List View
-                    <div className="flex flex-col sm:flex-row p-6">
-                      <div className="flex-1">
-                        {/* Type Badge */}
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
-                            item.type === 'offer' 
-                              ? 'bg-emerald-50 text-emerald-700' 
-                              : 'bg-blue-50 text-blue-700'
-                          }`}>
-                            {item.type === 'offer' ? (
-                              <ThumbsUp size={12} />
-                            ) : (
-                              <MessageCircle size={12} />
-                            )}
-                            {item.type === 'offer' ? 'Offer' : 'Request'}
-                          </span>
-                          <button
-                            onClick={() => toggleSave(item.id)}
-                            className={`p-1.5 rounded-lg transition ${
-                              savedItems.includes(item.id) 
-                                ? 'text-rose-500 bg-rose-50' 
-                                : 'text-gray-300 hover:text-rose-500 hover:bg-rose-50'
-                            }`}
-                          >
-                            <Heart size={18} fill={savedItems.includes(item.id) ? 'currentColor' : 'none'} />
+                    ) : (
+                      <div className="flex flex-col sm:flex-row p-6">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
+                              item.type === 'offer' 
+                                ? 'bg-emerald-50 text-emerald-700' 
+                                : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {item.type === 'offer' ? (
+                                <ThumbsUp size={12} />
+                              ) : (
+                                <MessageCircle size={12} />
+                              )}
+                              {item.type === 'offer' ? 'Offer' : 'Request'}
+                            </span>
+                            <button
+                              onClick={() => toggleSave(item.id)}
+                              className={`p-1.5 rounded-lg transition ${
+                                savedItems.includes(item.id) 
+                                  ? 'text-rose-500 bg-rose-50' 
+                                  : 'text-gray-300 hover:text-rose-500 hover:bg-rose-50'
+                              }`}
+                            >
+                              <Heart size={18} fill={savedItems.includes(item.id) ? 'currentColor' : 'none'} />
+                            </button>
+                          </div>
+
+                          <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
+                          <p className="text-gray-600 text-sm mt-1">{item.description}</p>
+
+                          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <MapPin size={14} className="text-violet-500" />
+                              {item.location}
+                            </span>
+                            <span className="flex items-center gap-1 bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                              {item.distance} km
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Star size={13} className="text-amber-400 fill-amber-400" />
+                              {item.rating} ({item.reviews})
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {item.tags.slice(0, 4).map((tag, i) => (
+                              <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <Users size={12} />
+                              {item.students} students
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Briefcase size={12} />
+                              {item.experience}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              {item.availability}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-4 sm:mt-0 sm:ml-4 sm:flex-col justify-center">
+                          <button className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition shadow-sm hover:shadow-md w-full sm:w-auto">
+                            Message
+                          </button>
+                          <button className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition w-full sm:w-auto flex items-center justify-center">
+                            <Bookmark size={16} className="text-gray-500" />
                           </button>
                         </div>
-
-                        <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
-                        <p className="text-gray-600 text-sm mt-1">{item.description}</p>
-
-                        <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <MapPin size={14} className="text-violet-500" />
-                            {item.location}
-                          </span>
-                          <span className="flex items-center gap-1 bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full text-xs font-medium">
-                            {item.distance} km
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Star size={13} className="text-amber-400 fill-amber-400" />
-                            {item.rating} ({item.reviews})
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          {item.tags.slice(0, 4).map((tag, i) => (
-                            <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <Users size={12} />
-                            {item.students} students
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Briefcase size={12} />
-                            {item.experience}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            {item.availability}
-                          </span>
-                        </div>
                       </div>
-
-                      <div className="flex items-center gap-2 mt-4 sm:mt-0 sm:ml-4 sm:flex-col justify-center">
-                        <button className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition shadow-sm hover:shadow-md w-full sm:w-auto">
-                          Message
-                        </button>
-                        <button className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition w-full sm:w-auto flex items-center justify-center">
-                          <Bookmark size={16} className="text-gray-500" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between mt-8 pt-4 border-t border-gray-200 gap-4">
-                <p className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredListings.length)} of {filteredListings.length} results
-                </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  >
-                    Previous
-                  </button>
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`px-3.5 py-1.5 rounded-lg text-sm transition-colors ${
-                        currentPage === i + 1
-                          ? 'bg-violet-600 text-white'
-                          : 'border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  >
-                    Next
-                  </button>
-                </div>
+                    )}
+                  </motion.div>
+                ))}
               </div>
-            )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between mt-8 pt-4 border-t border-gray-200 gap-4">
+                  <p className="text-sm text-gray-500">
+                    Showing {startIndex + 1} to {Math.min(endIndex, filteredListings.length)} of {filteredListings.length} results
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`px-3.5 py-1.5 rounded-lg text-sm transition-colors ${
+                          currentPage === i + 1
+                            ? 'bg-violet-600 text-white'
+                            : 'border border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <Navbar />
+
+      {/* Mobile Hamburger Menu */}
+      <div className="lg:hidden sticky top-16 z-50 bg-white border-b border-gray-200 px-4 py-2">
+        <button
+          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          className="flex items-center gap-2 px-3 py-2 bg-violet-50 text-violet-700 rounded-xl"
+        >
+          <Menu size={20} />
+          <span className="text-sm font-medium">Menu</span>
+          {savedItems.length > 0 && (
+            <span className="bg-violet-600 text-white text-xs px-2 py-0.5 rounded-full">
+              {savedItems.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            <motion.div
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              className="fixed left-0 top-0 h-full w-72 bg-white z-50 lg:hidden shadow-2xl"
+            >
+              <Sidebar
+                savedItems={savedItems}
+                onNavigate={handleNavigate}
+                activeTab={activeTab}
+                onLogout={handleLogout}
+              />
+            </motion.div>
           </>
         )}
+      </AnimatePresence>
+
+      {/* Main Layout */}
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block">
+          <Sidebar
+            savedItems={savedItems}
+            onNavigate={handleNavigate}
+            activeTab={activeTab}
+            onLogout={handleLogout}
+          />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">
+                {activeTab === 'browse' && 'Browse Listings'}
+                {activeTab === 'bookmarks' && 'Bookmarks'}
+                {activeTab === 'my-listings' && 'My Listings'}
+                {activeTab === 'profile' && 'Profile'}
+                {activeTab === 'settings' && 'Settings'}
+              </h1>
+              <p className="text-gray-500 text-sm">
+                {activeTab === 'browse' && 'Find skills to learn or people to connect with'}
+                {activeTab === 'bookmarks' && `${savedItems.length} saved listings`}
+                {activeTab === 'my-listings' && 'Manage your created listings'}
+                {activeTab === 'profile' && 'Your profile information'}
+                {activeTab === 'settings' && 'Account settings'}
+              </p>
+            </div>
+
+            {renderContent()}
+          </div>
+        </div>
       </div>
 
       <Footer />
