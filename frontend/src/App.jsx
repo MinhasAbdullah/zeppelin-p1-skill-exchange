@@ -1,12 +1,8 @@
-import { useState } from 'react'
+import CreateListing from './Listing/CreateListing'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <h1>Hello World</h1>
-    </>
+    <CreateListing />
   )
 }
 
