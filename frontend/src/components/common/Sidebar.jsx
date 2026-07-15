@@ -5,12 +5,12 @@ import { COLORS } from '../../utils/constants';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, logout } = useUser();
   const colors = COLORS;
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
-    { id: 'home', icon: 'home', label: 'Home', path: '/' },
+    { id: 'browse', icon: 'search', label: 'Browse', path: '/browse' },
     { id: 'profile', icon: 'user', label: 'Profile', path: '/profile' },
     { id: 'messages', icon: 'chat', label: 'Messages', path: '/messages' },
     { id: 'matches', icon: 'heart', label: 'Matches', path: '/matches' },
@@ -45,56 +45,52 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       ),
       expand: (
         <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" />
+      ),
+      plus: (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
       )
     };
     return icons[iconName] || null;
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    logout();
     window.location.href = '/login';
+  };
+
+  const handleCreateListing = () => {
+    navigate('/create-listing');
   };
 
   return (
     <>
-      {/* Mobile Hamburger */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg shadow-md lg:hidden"
-        style={{ backgroundColor: colors.primary, color: '#FFFFFF' }}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
-      </button>
-
       {/* Overlay for mobile */}
-      {isOpen && (
+      {!isCollapsed && (
         <div
           className="fixed inset-0 z-40 lg:hidden"
           style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setIsOpen(false)}
+          onClick={() => setIsCollapsed(true)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 flex flex-col h-screen transition-all duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`lg:sticky top-0 left-0 z-40 self-stretch flex flex-col transition-all duration-300 ease-in-out ${
+          !isCollapsed ? 'translate-x-0' : 'lg:translate-x-0'
         } ${isCollapsed ? 'w-20' : 'w-64'}`}
         style={{ 
           backgroundColor: colors.white,
+          
           borderRight: `1px solid ${colors.secondary}`
         }}
       >
-        {/* Logo and Collapse Toggle */}
+        {/* Collapse Toggle */}
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-4`} 
-             >
-          
+             style={{ borderColor: colors.secondary }}>
           
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1.5 rounded-lg transition-colors hover:bg-gray-100"
+            className="p-1.5 rounded-lg transition-colors hover:bg-gray-100 flex-shrink-0"
             style={{ color: colors.textSecondary }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
@@ -104,17 +100,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         </div>
 
         {/* User Profile Section */}
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'px-4'} py-4 border-b`} 
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'px-4'} py-4 border-b flex-shrink-0`} 
              style={{ borderColor: colors.secondary }}>
           <img 
-            src={user?.avatar || 'https://via.placeholder.com/40'} 
+            src={"https://res.cloudinary.com/deiqafya2/" + user?.photo} 
             alt="User"
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />
           {!isCollapsed && (
             <div className="ml-3 flex-1 min-w-0">
               <p className="font-medium truncate" style={{ color: colors.text }}>
-                {user?.name || 'User'}
+                {user?.username || 'User'}
               </p>
               <p className="text-sm truncate" style={{ color: colors.textSecondary }}>
                 {user?.email || 'user@email.com'}
@@ -124,7 +120,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.id}
@@ -133,6 +129,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200
                 ${isActive ? 'font-medium' : 'hover:bg-gray-50'}
                 ${isCollapsed ? 'justify-center' : ''}
+                relative group whitespace-nowrap
               `}
               style={({ isActive }) => ({
                 color: isActive ? colors.primary : colors.textSecondary,
@@ -140,7 +137,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               })}
               onClick={() => {
                 if (window.innerWidth < 1024) {
-                  setIsOpen(false);
+                  setIsCollapsed(true);
                 }
               }}
             >
@@ -162,19 +159,42 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         </nav>
 
         {/* Bottom Actions */}
-        <div className={`p-4 border-t space-y-1`} style={{ borderColor: colors.secondary }}>
-          <button
-            onClick={handleLogout}
-            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors hover:bg-gray-50 ${
-              isCollapsed ? 'justify-center' : ''
-            }`}
-            style={{ color: colors.textSecondary }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 flex-shrink-0">
-              {renderIcon('logout')}
-            </svg>
-            {!isCollapsed && <span>Logout</span>}
-          </button>
+        <div className={`border-t flex-shrink-0`} style={{ borderColor: colors.secondary }}>
+          {/* Create Listing Button */}
+          <div className={`p-3 ${isCollapsed ? 'flex justify-center' : ''}`}>
+            <button
+              onClick={handleCreateListing}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition hover:shadow-lg ${
+                isCollapsed ? 'justify-center w-auto' : 'w-full'
+              } whitespace-nowrap`}
+              style={{ 
+                backgroundColor: colors.primary,
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.primaryDark}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.primary}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 flex-shrink-0">
+                {renderIcon('plus')}
+              </svg>
+              {!isCollapsed && <span>Create Listing</span>}
+            </button>
+          </div>
+
+          {/* Logout Button */}
+          <div className={`p-3 pt-0 ${isCollapsed ? 'flex justify-center' : ''}`}>
+            <button
+              onClick={handleLogout}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-gray-50 ${
+                isCollapsed ? 'justify-center w-auto' : 'w-full'
+              } whitespace-nowrap`}
+              style={{ color: colors.textSecondary }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 flex-shrink-0">
+                {renderIcon('logout')}
+              </svg>
+              {!isCollapsed && <span>Logout</span>}
+            </button>
+          </div>
         </div>
       </aside>
     </>

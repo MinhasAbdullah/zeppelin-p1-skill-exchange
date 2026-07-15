@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useUser } from '../../context/UserContext';
 import Button from '../common/Button';
 import Input from '../common/Input';
@@ -6,33 +6,36 @@ import Modal from '../common/Modal';
 import { COLORS } from '../../utils/constants';
 
 const ProfileInfo = () => {
-  const {  userData, setIsProfileInfoModal, isProfileInfoModal, updateProfile } = useUser();
+  const { user, updateProfile } = useUser();
   const colors = COLORS;
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
-    firstName: userData.firstName,
-    lastName: userData.lastName,
-    email: userData.email,
-    bio: userData.bio,
-    name: userData.name,
-    created_at: userData.created_at,
-    avatar: userData.avatar
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
+    email: user?.email || '',
+    bio: user?.bio || '',
+    username: user?.username || '',
   });
 
-  const formatMonthYear = (dateStr) => {
-    // Append time to prevent timezone shifting issues
-    const date = new Date(`${dateStr}T00:00:00`); 
-    
-    return date.toLocaleDateString('en-US', {
-      month: 'long', // Use 'short' for "Jul", 'long' for "July"
-      year: 'numeric' // "2026"
-    });
-  };
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(user?.photo || null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [errors, setErrors] = useState({});
+
+  const formatMonthYear = (dateStr) => {
+    if (!dateStr) return 'Recent';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric'
+    });
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -49,42 +52,102 @@ const ProfileInfo = () => {
     setSuccess('');
   };
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setError('');
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const validate = () => {
     const newErrors = {};
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
+    if (!formData.first_name) newErrors.first_name = 'First name is required';
+    if (!formData.last_name) newErrors.last_name = 'Last name is required';
     if (!formData.email) newErrors.email = 'Email is required';
     if (!formData.bio) newErrors.bio = 'Bio is required';
     return newErrors;
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
+  e.preventDefault();
+  const validationErrors = validate();
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+  setSuccess('');
+
+  try {
+    const formDataObj = new FormData();
+    formDataObj.append('first_name', formData.first_name);
+    formDataObj.append('last_name', formData.last_name);
+    formDataObj.append('email', formData.email);
+    formDataObj.append('bio', formData.bio);
+    formDataObj.append('username', formData.username);
+    
+    if (photoFile) {
+      formDataObj.append('photo', photoFile);
     }
 
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    const result = await updateProfile({
-      ...formData,
-      name: `${formData.firstName} ${formData.lastName}`
-    });
-
+    const result = await updateProfile(formDataObj);
     setLoading(false);
     if (result.success) {
       setSuccess('Profile updated successfully!');
+      setPhotoFile(null);
       setTimeout(() => {
-        setIsProfileInfoModal(false);
+        setIsModalOpen(false);
         setSuccess('');
       }, 1500);
     } else {
       setError(result.error || 'Failed to update profile');
     }
+  } catch (err) {
+    setLoading(false);
+    setError('An error occurred while updating profile');
+  }
+};
+
+  const handleOpenModal = () => {
+    // Reset form data when opening modal
+    setFormData({
+      first_name: user?.first_name || '',
+      last_name: user?.last_name || '',
+      email: user?.email || '',
+      bio: user?.bio || '',
+      username: user?.username || '',
+    });
+    setPhotoPreview(user?.photo || null);
+    setPhotoFile(null);
+    setError('');
+    setSuccess('');
+    setIsModalOpen(true);
   };
 
   return (
@@ -96,21 +159,26 @@ const ProfileInfo = () => {
             {/* Profile Header */}
             <div className="mb-6 flex flex-col gap-5 sm:flex-row xl:items-center xl:justify-between">
               <div className="flex w-full flex-col items-start gap-6 sm:flex-row sm:items-center">
-                <div className="overflow-hidden rounded-full border-4" style={{ borderColor: colors.primary }}>
-                  <img 
-                    src={userData.avatar || 'https://via.placeholder.com/80'} 
-                    className="w-20 h-20 object-cover" 
-                    alt={userData.name} 
-                  />
+                <div className="relative">
+                  <div className="overflow-hidden rounded-full border-4" style={{ borderColor: colors.primary }}>
+                    <img 
+                      src={"https://res.cloudinary.com/deiqafya2/" + user?.photo} 
+                      className="w-20 h-20 object-cover" 
+                      alt={user?.username || 'User'} 
+                    />
+                  </div>
                 </div>
                 <div className="text-left">
                   <h4 className="mb-1 text-xl font-bold" style={{ color: colors.text }}>
-                    {userData.name}
+                    {user?.first_name} {user?.last_name}
                   </h4>
                   <div className="flex flex-wrap items-center gap-1 sm:gap-3">
-            
                     <p className="text-sm" style={{ color: colors.textSecondary }}>
-                      Member Since {formatMonthYear(userData.created_at)}
+                      @{user?.username}
+                    </p>
+                    <div className="hidden h-3.5 w-px sm:block" style={{ backgroundColor: colors.secondary }}></div>
+                    <p className="text-sm" style={{ color: colors.textSecondary }}>
+                      Member Since {formatMonthYear(user?.created_at)}
                     </p>
                   </div>
                 </div>
@@ -124,7 +192,7 @@ const ProfileInfo = () => {
                   First Name
                 </p>
                 <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.firstName}
+                  {user?.first_name || 'Not set'}
                 </p>
               </div>
               <div className="w-full">
@@ -132,7 +200,7 @@ const ProfileInfo = () => {
                   Last Name
                 </p>
                 <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.lastName}
+                  {user?.last_name || 'Not set'}
                 </p>
               </div>
               <div className="hidden xl:block"></div>
@@ -142,7 +210,7 @@ const ProfileInfo = () => {
                   Email address
                 </p>
                 <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.email}
+                  {user?.email || 'Not set'}
                 </p>
               </div>
               <div>
@@ -150,17 +218,17 @@ const ProfileInfo = () => {
                   Bio
                 </p>
                 <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.bio}
+                  {user?.bio || 'No bio yet'}
                 </p>
               </div>
             </div>
-              </div>
+          </div>
 
           {/* Edit Button */}
           <div>
             <Button
               variant="primary"
-              onClick={() => setIsProfileInfoModal(true)}
+              onClick={handleOpenModal}
               className="w-full sm:w-auto"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -174,11 +242,12 @@ const ProfileInfo = () => {
 
       {/* Edit Profile Modal */}
       <Modal
-        isOpen={isProfileInfoModal}
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsProfileInfoModal(false);
+          setIsModalOpen(false);
           setError('');
           setSuccess('');
+          setPhotoFile(null);
         }}
         title="Edit Profile"
       >
@@ -195,26 +264,86 @@ const ProfileInfo = () => {
               </div>
             )}
 
+            {/* Photo Upload */}
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Profile Photo
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <img 
+                    src={photoPreview || 'https://via.placeholder.com/80'} 
+                    className="w-20 h-20 rounded-full object-cover border-2"
+                    style={{ borderColor: colors.secondary }}
+                    alt="Profile"
+                  />
+                </div>
+                <div className="flex-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                    id="photo-upload"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Upload Photo
+                    </Button>
+                    {photoPreview && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleRemovePhoto}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                    JPG, PNG or GIF. Max 5MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="First Name"
-                name="firstName"
+                name="first_name"
                 placeholder="Enter first name"
-                value={formData.firstName}
+                value={formData.first_name}
                 onChange={handleChange}
-                error={errors.firstName}
+                error={errors.first_name}
                 required
               />
               <Input
                 label="Last Name"
-                name="lastName"
+                name="last_name"
                 placeholder="Enter last name"
-                value={formData.lastName}
+                value={formData.last_name}
                 onChange={handleChange}
-                error={errors.lastName}
+                error={errors.last_name}
                 required
               />
             </div>
+
+            <Input
+              label="Username"
+              type="text"
+              name="username"
+              placeholder="Enter username"
+              value={formData.username}
+              onChange={handleChange}
+              error={errors.username}
+            />
 
             <Input
               label="Email Address"
@@ -253,9 +382,10 @@ const ProfileInfo = () => {
                 type="button"
                 variant="secondary"
                 onClick={() => {
-                  setIsProfileInfoModal(false);
+                  setIsModalOpen(false);
                   setError('');
                   setSuccess('');
+                  setPhotoFile(null);
                 }}
                 className="flex-1"
               >
@@ -264,10 +394,10 @@ const ProfileInfo = () => {
               <Button
                 type="submit"
                 variant="primary"
-                disabled={loading}
+                disabled={loading || uploadingPhoto}
                 className="flex-1"
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? 'Saving...' : uploadingPhoto ? 'Uploading Photo...' : 'Save Changes'}
               </Button>
             </div>
           </div>

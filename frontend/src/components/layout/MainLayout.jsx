@@ -1,7 +1,9 @@
+// components/layout/MainLayout.jsx
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../common/Sidebar';
 import Navbar from '../common/Navbar';
+import Footer from '../common/Footer';
 import { COLORS } from '../../utils/constants';
 
 const MainLayout = () => {
@@ -13,7 +15,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen" style={{ backgroundColor: colors.secondaryLight }}>
+    <div className="flex flex-col min-h-screen" style={{ backgroundColor: colors.secondaryLight }}>
       <Navbar toggleSidebar={toggleSidebar} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
@@ -21,6 +23,7 @@ const MainLayout = () => {
           <Outlet />
         </main>
       </div>
+      <Footer />
     </div>
   );
 };

@@ -1,5 +1,7 @@
+// context/UserContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../services/api';
+import { authAPI, listingsAPI } from '../services/api';
+
 
 const UserContext = createContext();
 
@@ -15,145 +17,144 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [switcherToggle, setSwitcherToggle] = useState(false);
-  
-  // Profile Modals
-  const [isProfileInfoModal, setIsProfileInfoModal] = useState(false);
-  const [isProfileAddressModal, setIsProfileAddressModal] = useState(false);
-  const [isPasswordModal, setIsPasswordModal] = useState(false);
+  const [userListings, setUserListings] = useState([]);
 
-  // const colors = {
-  //   primary: '#7158E2',
-  //   primaryDark: '#6B4CE6',
-  //   secondary: '#EFEAFA',
-  //   secondaryLight: '#F4F0FF',
-  //   text: '#1A1A1A',
-  //   textSecondary: '#4A4A4A',
-  //   white: '#FFFFFF',
-  //   error: '#EF4444',
-  //   success: '#10B981'
-  // };
-
-  const [userData, setUserData] = useState({
-    name: 'Hassan Adil',
-    created_at: '2026-07-13',
-    avatar: 'src/images/user/owner.png',
-    email: 'thedevhassan@gmail.com',
-    bio: 'abracadabra',
-    firstName: 'Hassan',
-    lastName: 'Adil',
-    latitude: '34.0489° N',
-    longitude: '111.0937° W',
-    cityState: 'Islamabad',
-    country: 'Pakistan'
-  });
-
+  // Check auth on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const response = await api.get('/auth/me');
-          setUser(response.data);
-          setUserData(response.data);
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          localStorage.removeItem('token');
-          setIsAuthenticated(false);
-        }
-      }
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      fetchUser();
+    } else {
       setLoading(false);
-    };
-
-    checkAuth();
+    }
   }, []);
 
-  const login = async (email, password) => {
+  const fetchUser = async () => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', response.data.token);
-      setUser(response.data.user);
-      setUserData(response.data.user);
+      const response = await authAPI.getMe();
+      setUser(response.data);
       setIsAuthenticated(true);
-      return { success: true };
+      // Get user's listings if needed
+      // const listings = await listingsAPI.getAll({ user: response.data.id });
+      // setUserListings(listings.data);
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('Error fetching user:', error);
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      setIsAuthenticated(false);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signup = async (userData) => {
+  const login = async (username, password) => {
     try {
-      const response = await api.post('/auth/signup', userData);
-      localStorage.setItem('token', response.data.token);
-      setUser(response.data.user);
-      setUserData(response.data.user);
-      setIsAuthenticated(true);
+      const response = await authAPI.login({ username, password });
+      const { access, refresh } = response.data;
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      
+      await fetchUser();
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Login failed. Please check your credentials.'
+      };
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await authAPI.register(userData);
+      // After registration, login automatically
+      const loginResult = await login(userData.username, userData.password);
+      if (loginResult.success) {
+        return { success: true, user: response.data };
+      }
+      return { success: false, error: 'Registration successful but login failed' };
+    } catch (error) {
+      const errorData = error.response?.data;
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (errorData?.username) {
+        errorMessage = `Username: ${errorData.username[0]}`;
+      } else if (errorData?.email) {
+        errorMessage = `Email: ${errorData.email[0]}`;
+      } else if (errorData?.non_field_errors) {
+        errorMessage = errorData.non_field_errors[0];
+      }
+      
+      return { success: false, error: errorMessage };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     setUser(null);
     setIsAuthenticated(false);
   };
 
   const updateProfile = async (data) => {
+  try {
+    let isFormData = false;
+    
+    // Check if data is FormData (for photo upload)
+    if (data instanceof FormData) {
+      isFormData = true;
+    }
+    
+    const response = await authAPI.updateMe(data, isFormData);
+    setUser(response.data);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.response?.data || 'Failed to update profile' };
+  }
+};
+
+  const createListing = async (data) => {
     try {
-      const response = await api.put('/user/profile', data);
-      setUserData(response.data);
-      setUser(response.data);
-      return { success: true };
+      const response = await listingsAPI.create(data);
+      return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data || 'Failed to create listing' };
     }
   };
 
-  const updateLocation = async (data) => {
+  const updateListing = async (id, data) => {
     try {
-      const response = await api.put('/user/location', data);
-      setUserData(response.data);
-      setUser(response.data);
-      return { success: true };
+      const response = await listingsAPI.update(id, data);
+      return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data || 'Failed to update listing' };
     }
   };
 
-  const changePassword = async (data) => {
+  const deleteListing = async (id) => {
     try {
-      await api.post('/auth/change-password', data);
+      await listingsAPI.delete(id);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data || 'Failed to delete listing' };
     }
   };
 
   return (
     <UserContext.Provider value={{
-      
       user,
-      userData,
-      setUserData,
+      setUser,
       loading,
       isAuthenticated,
-      switcherToggle,
-      setSwitcherToggle,
-      isProfileInfoModal,
-      setIsProfileInfoModal,
-      isProfileAddressModal,
-      setIsProfileAddressModal,
-      isPasswordModal,
-      setIsPasswordModal,
+      userListings,
       login,
-      signup,
+      register,
       logout,
       updateProfile,
-      updateLocation,
-      changePassword
+      createListing,
+      updateListing,
+      deleteListing,
+      fetchUser,
     }}>
       {children}
     </UserContext.Provider>

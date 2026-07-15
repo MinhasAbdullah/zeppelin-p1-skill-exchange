@@ -19,7 +19,7 @@ const PublicRoute = () => {
     );
   }
 
-  return isAuthenticated ? <Navigate to="/profile" replace /> : <Outlet />;
+  return isAuthenticated ? <Navigate to="/browse" replace /> : <Outlet />;
 };
 
 export default PublicRoute;

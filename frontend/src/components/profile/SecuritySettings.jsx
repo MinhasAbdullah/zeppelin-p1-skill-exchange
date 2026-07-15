@@ -7,11 +7,10 @@ import { COLORS } from '../../utils/constants';
 
 const SecuritySettings = () => {
   const { 
-    switcherToggle, 
-    setSwitcherToggle,
     isPasswordModal,
     setIsPasswordModal,
-    changePassword 
+    changePassword,
+    
   } = useUser();
   const colors = COLORS;
   const [loading, setLoading] = useState(false);
@@ -19,9 +18,9 @@ const SecuritySettings = () => {
   const [success, setSuccess] = useState('');
   
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
   });
   const [passwordErrors, setPasswordErrors] = useState({});
 
@@ -42,11 +41,11 @@ const SecuritySettings = () => {
 
   const validatePassword = () => {
     const errors = {};
-    if (!passwordData.currentPassword) errors.currentPassword = 'Current password is required';
-    if (!passwordData.newPassword) errors.newPassword = 'New password is required';
-    if (passwordData.newPassword.length < 6) errors.newPassword = 'Password must be at least 6 characters';
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+    if (!passwordData.current_password) errors.current_password = 'Current password is required';
+    if (!passwordData.new_password) errors.new_password = 'New password is required';
+    if (passwordData.new_password.length < 6) errors.new_password = 'Password must be at least 6 characters';
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      errors.confirm_password = 'Passwords do not match';
     }
     return errors;
   };
@@ -64,17 +63,17 @@ const SecuritySettings = () => {
     setSuccess('');
 
     const result = await changePassword({
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword
+      current_password: passwordData.current_password,
+      new_password: passwordData.new_password
     });
 
     setLoading(false);
     if (result.success) {
       setSuccess('Password changed successfully!');
       setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+        current_password: '',
+        new_password: '',
+        confirm_password: ''
       });
       setTimeout(() => {
         setIsPasswordModal(false);
@@ -82,16 +81,6 @@ const SecuritySettings = () => {
       }, 1500);
     } else {
       setError(result.error || 'Failed to change password');
-    }
-  };
-
-  const handle2FAToggle = async () => {
-    try {
-      // API call to toggle 2FA
-      // await api.post('/auth/2fa/toggle');
-      setSwitcherToggle(!switcherToggle);
-    } catch (error) {
-      console.error('Failed to toggle 2FA:', error);
     }
   };
 
@@ -104,7 +93,7 @@ const SecuritySettings = () => {
             Security
           </h4>
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ 
-            backgroundColor: colors.success,
+            backgroundColor: colors.success || '#10B981',
             color: '#FFFFFF'
           }}>
             Secure
@@ -112,7 +101,7 @@ const SecuritySettings = () => {
         </div>
 
         {/* Change Password */}
-        <div className="border-b pb-4 mb-4" style={{ borderColor: colors.secondary }}>
+        <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <span className="text-base font-medium" style={{ color: colors.text }}>
@@ -133,56 +122,6 @@ const SecuritySettings = () => {
             </div>
           </div>
         </div>
-
-        {/* Two-Factor Authentication */}
-        <div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-medium" style={{ color: colors.text }}>
-                  Two-factor authentication (2FA)
-                </span>
-                {switcherToggle && (
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ 
-                    backgroundColor: colors.success,
-                    color: '#FFFFFF'
-                  }}>
-                    Enabled
-                  </span>
-                )}
-              </div>
-              <p className="text-sm" style={{ color: colors.textSecondary }}>
-                Keep your account secure by enabling 2FA
-              </p>
-            </div>
-            <div>
-              <label className="flex cursor-pointer items-center gap-3 text-sm font-medium select-none" style={{ color: colors.text }}>
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    onChange={handle2FAToggle}
-                    checked={switcherToggle}
-                  />
-                  <div
-                    className={`block h-6 w-11 rounded-full transition-colors duration-200`}
-                    style={{ 
-                      backgroundColor: switcherToggle ? colors.primary : colors.secondary
-                    }}
-                  ></div>
-                  <div
-                    className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                      switcherToggle ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  ></div>
-                </div>
-                <span className="text-sm font-medium">
-                  {switcherToggle ? 'Enabled' : 'Disabled'}
-                </span>
-              </label>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Change Password Modal */}
@@ -193,9 +132,9 @@ const SecuritySettings = () => {
           setError('');
           setSuccess('');
           setPasswordData({
-            currentPassword: '',
-            newPassword: '',
-            confirmPassword: ''
+            current_password: '',
+            new_password: '',
+            confirm_password: ''
           });
           setPasswordErrors({});
         }}
@@ -217,33 +156,33 @@ const SecuritySettings = () => {
             <Input
               label="Current Password"
               type="password"
-              name="currentPassword"
+              name="current_password"
               placeholder="Enter current password"
-              value={passwordData.currentPassword}
+              value={passwordData.current_password}
               onChange={handlePasswordChange}
-              error={passwordErrors.currentPassword}
+              error={passwordErrors.current_password}
               required
             />
 
             <Input
               label="New Password"
               type="password"
-              name="newPassword"
-              placeholder="Enter new password"
-              value={passwordData.newPassword}
+              name="new_password"
+              placeholder="Enter new password (min 6 characters)"
+              value={passwordData.new_password}
               onChange={handlePasswordChange}
-              error={passwordErrors.newPassword}
+              error={passwordErrors.new_password}
               required
             />
 
             <Input
               label="Confirm New Password"
               type="password"
-              name="confirmPassword"
+              name="confirm_password"
               placeholder="Confirm new password"
-              value={passwordData.confirmPassword}
+              value={passwordData.confirm_password}
               onChange={handlePasswordChange}
-              error={passwordErrors.confirmPassword}
+              error={passwordErrors.confirm_password}
               required
             />
 
@@ -256,9 +195,9 @@ const SecuritySettings = () => {
                   setError('');
                   setSuccess('');
                   setPasswordData({
-                    currentPassword: '',
-                    newPassword: '',
-                    confirmPassword: ''
+                    current_password: '',
+                    new_password: '',
+                    confirm_password: ''
                   });
                   setPasswordErrors({});
                 }}

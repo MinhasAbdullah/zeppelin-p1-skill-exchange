@@ -6,17 +6,17 @@ import Modal from '../common/Modal';
 import { COLORS } from '../../utils/constants';
 
 const LocationInfo = () => {
-  const { userData, setIsProfileAddressModal, isProfileAddressModal, updateLocation } = useUser();
+  const { user, updateProfile } = useUser();
   const colors = COLORS;
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
   const [formData, setFormData] = useState({
-    latitude: userData.latitude,
-    longitude: userData.longitude,
-    cityState: userData.cityState,
-    country: userData.country || 'Pakistan'
+    city: user?.city || '',
+    latitude: user?.latitude || '',
+    longitude: user?.longitude || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -38,9 +38,7 @@ const LocationInfo = () => {
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.latitude) newErrors.latitude = 'Latitude is required';
-    if (!formData.longitude) newErrors.longitude = 'Longitude is required';
-    if (!formData.cityState) newErrors.cityState = 'Location is required';
+    if (!formData.city) newErrors.city = 'City is required';
     return newErrors;
   };
 
@@ -56,13 +54,22 @@ const LocationInfo = () => {
     setError('');
     setSuccess('');
 
-    const result = await updateLocation(formData);
+    // Only send fields that exist in the backend User model
+    const updateData = {};
+    if (formData.city) updateData.city = formData.city;
+    
+    // Note: The current backend User model doesn't have latitude/longitude fields
+    // If you want to store them, you'd need to add them to the User model first
+    // For now, we'll only update city
+    // If latitude/longitude are custom fields, you might need to handle them separately
+
+    const result = await updateProfile(updateData);
 
     setLoading(false);
     if (result.success) {
       setSuccess('Location updated successfully!');
       setTimeout(() => {
-        setIsProfileAddressModal(false);
+        setIsModalOpen(false);
         setSuccess('');
       }, 1500);
     } else {
@@ -83,26 +90,18 @@ const LocationInfo = () => {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-7 2xl:gap-x-32">
               <div>
                 <p className="mb-2 text-xs leading-normal" style={{ color: colors.textSecondary }}>
-                  Latitude
+                  City
                 </p>
                 <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.latitude}
+                  {user?.city || 'Not set'}
                 </p>
               </div>
               <div>
                 <p className="mb-2 text-xs leading-normal" style={{ color: colors.textSecondary }}>
-                  Longitude
+                  Country
                 </p>
                 <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.longitude}
-                </p>
-              </div>
-              <div>
-                <p className="mb-2 text-xs leading-normal" style={{ color: colors.textSecondary }}>
-                  Location
-                </p>
-                <p className="text-sm font-medium" style={{ color: colors.text }}>
-                  {userData.cityState}, {userData.country}
+                  {user?.country || 'Pakistan'}
                 </p>
               </div>
             </div>
@@ -111,7 +110,7 @@ const LocationInfo = () => {
           <div>
             <Button
               variant="primary"
-              onClick={() => setIsProfileAddressModal(true)}
+              onClick={() => setIsModalOpen(true)}
               className="w-full sm:w-auto"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,9 +124,9 @@ const LocationInfo = () => {
 
       {/* Edit Location Modal */}
       <Modal
-        isOpen={isProfileAddressModal}
+        isOpen={isModalOpen}
         onClose={() => {
-          setIsProfileAddressModal(false);
+          setIsModalOpen(false);
           setError('');
           setSuccess('');
         }}
@@ -147,50 +146,21 @@ const LocationInfo = () => {
             )}
 
             <Input
-              label="Country"
-              name="country"
-              placeholder="Enter country"
-              value={formData.country}
+              label="City"
+              name="city"
+              placeholder="Enter your city"
+              value={formData.city}
               onChange={handleChange}
-            />
-
-            <Input
-              label="City / State"
-              name="cityState"
-              placeholder="Enter city and state"
-              value={formData.cityState}
-              onChange={handleChange}
-              error={errors.cityState}
+              error={errors.city}
               required
             />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Latitude"
-                name="latitude"
-                placeholder="Enter latitude"
-                value={formData.latitude}
-                onChange={handleChange}
-                error={errors.latitude}
-                required
-              />
-              <Input
-                label="Longitude"
-                name="longitude"
-                placeholder="Enter longitude"
-                value={formData.longitude}
-                onChange={handleChange}
-                error={errors.longitude}
-                required
-              />
-            </div>
 
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => {
-                  setIsProfileAddressModal(false);
+                  setIsModalOpen(false);
                   setError('');
                   setSuccess('');
                 }}
