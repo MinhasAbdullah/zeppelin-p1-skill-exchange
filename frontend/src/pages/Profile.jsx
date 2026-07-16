@@ -24,9 +24,9 @@ const Profile = () => {
         <LocationInfo />
       </Card>
 
-      <Card>
+      {/* <Card>
         <SecuritySettings />
-      </Card>
+      </Card> */}
     </div>
   );
 };

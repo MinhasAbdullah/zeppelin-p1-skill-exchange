@@ -7,18 +7,21 @@ import {
   Share2, Flag, Star, Clock, CheckCircle, X, Edit
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { listingsAPI } from '../services/api';
+import {useChat} from '../context/ChatContext';
+import { listingsAPI, moderationAPI } from '../services/api';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Loader from '../components/common/Loader';
 import Input from '../components/common/Input';
 import Modal from '../components/common/Modal';
 import { COLORS } from '../utils/constants';
+import defaultPfp from '../assets/defaultpfp.png';
 
 const ItemDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useUser();
+  const { startChat } = useChat();
   const colors = COLORS;
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +31,21 @@ const ItemDetails = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
+  
+  // Report Modal States
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  // const [reportDescription, setReportDescription] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
+
+  const reportReasons = [
+    { value: 'spam', label: 'Spam' },
+    { value: 'inappropriate', label: 'Inappropriate' },
+    { value: 'fake', label: 'Fake Listing' },
+    { value: 'other', label: 'Other' },
+  ];
 
   const [editForm, setEditForm] = useState({
     title: '',
@@ -66,8 +84,51 @@ const ItemDetails = () => {
     }
   };
 
-  const handleMessage = () => {
-    navigate(`/messages?listing=${id}&user=${listing?.user}`);
+  const handleReport = async (e) => {
+    e.preventDefault();
+    if (!reportReason) {
+      setReportError('Please select a reason');
+      return;
+    }
+
+    setReportLoading(true);
+    setReportError('');
+    setReportSuccess('');
+
+    try {
+      const response = await moderationAPI.reportContent(listing.id, {
+        listing: listing.id,
+        reason: reportReason,
+        // description: reportDescription
+      });
+      
+      if (response.status === 201 || response.status === 200 || response.success) {
+        setReportSuccess('Report submitted successfully! Thank you for helping keep our community safe.');
+        setTimeout(() => {
+          setIsReportModalOpen(false);
+          setReportSuccess('');
+          setReportReason('');
+          // setReportDescription('');
+        }, 2000);
+      } else {
+        setReportError(response.error || 'Failed to submit report');
+      }
+    } catch (err) {
+      console.error('Error submitting report:', err);
+      setReportError('An error occurred while submitting your report');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleMessage = async (e) => {
+    e.stopPropagation();
+    try {
+      await startChat(listing.user);
+      navigate('/messages');
+    } catch (error) {
+      console.error('Error starting chat:', error);
+    }
   };
 
   const handleSave = () => {
@@ -144,6 +205,14 @@ const ItemDetails = () => {
     setIsEditModalOpen(true);
   };
 
+  const openReportModal = () => {
+    setReportReason('');
+    // setReportDescription('');
+    setReportError('');
+    setReportSuccess('');
+    setIsReportModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -207,7 +276,7 @@ const ItemDetails = () => {
                     {listing.type === 'offer' ? 'Offer' : 'Request'}
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
+                    {/* <button
                       onClick={handleSave}
                       className="p-2 rounded-lg transition"
                       style={{ 
@@ -216,7 +285,7 @@ const ItemDetails = () => {
                       }}
                     >
                       <Heart size={18} fill={isSaved ? 'currentColor' : 'none'} />
-                    </button>
+                    </button> */}
                     <button
                       onClick={handleShare}
                       className="p-2 rounded-lg transition"
@@ -335,13 +404,18 @@ const ItemDetails = () => {
             {/* User Card */}
             <Card>
               <div className="p-6 text-center">
-                <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-semibold mx-auto" style={{ 
-                  background: `linear-gradient(to right, ${colors.primary}, ${colors.primaryDark})`
-                }}>
-                  {String(listing.user || 'U').charAt(0).toUpperCase()}
+                <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden border-2 mx-auto" style={{ borderColor: colors.primary }}>
+                  <img 
+                    src={listing.user_photo || defaultPfp}
+                    alt={listing.createdby || 'User'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = defaultPfp;
+                    }}
+                  />
                 </div>
                 <h4 className="mt-3 font-semibold" style={{ color: colors.text }}>
-                  User #{listing.user}
+                  {listing.user_name}
                 </h4>
                 <p className="text-sm" style={{ color: colors.textSecondary }}>
                   Member since {formatDate(listing.created_at)}
@@ -377,15 +451,7 @@ const ItemDetails = () => {
                       </Button>
                     </>
                   )}
-                  {!isOwner && (
-                    <Button 
-                      variant="secondary" 
-                      fullWidth
-                      onClick={() => navigate('/browse')}
-                    >
-                      Browse More Listings
-                    </Button>
-                  )}
+                  
                 </div>
               </div>
             </Card>
@@ -395,7 +461,7 @@ const ItemDetails = () => {
               <button
                 className="w-full text-center text-sm hover:underline transition-colors py-2"
                 style={{ color: colors.textSecondary }}
-                onClick={() => alert('Report this listing?')}
+                onClick={openReportModal}
               >
                 <Flag size={14} className="inline mr-1" />
                 Report this listing
@@ -605,6 +671,109 @@ const ItemDetails = () => {
                 className="flex-1"
               >
                 {editLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setReportError('');
+          setReportSuccess('');
+          setReportReason('');
+          // setReportDescription('');
+        }}
+        title="Report Listing"
+        size="md"
+      >
+        <form onSubmit={handleReport}>
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: colors.textSecondary }}>
+              Please let us know why you're reporting this listing. This helps us keep our community safe.
+            </p>
+
+            {reportError && (
+              <div className="p-3 rounded-lg text-sm" style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
+                {reportError}
+              </div>
+            )}
+            {reportSuccess && (
+              <div className="p-3 rounded-lg text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
+                {reportSuccess}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Reason <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={reportReason}
+                onChange={(e) => {
+                  setReportReason(e.target.value);
+                  setReportError('');
+                }}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-all"
+                style={{
+                  borderColor: colors.secondary,
+                  color: colors.text,
+                  backgroundColor: colors.white
+                }}
+                required
+              >
+                <option value="">Select a reason</option>
+                {reportReasons.map((reason) => (
+                  <option key={reason.value} value={reason.value}>
+                    {reason.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            
+
+            <div className="flex gap-3 pt-4 border-t" style={{ borderColor: colors.secondary }}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsReportModalOpen(false);
+                  setReportError('');
+                  setReportSuccess('');
+                  setReportReason('');
+                  // setReportDescription('');
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={reportLoading}
+                className="flex-1"
+                style={{
+                  backgroundColor: '#DC2626',
+                  borderColor: '#DC2626'
+                }}
+                onMouseEnter={(e) => {
+                  if (!reportLoading) {
+                    e.currentTarget.style.backgroundColor = '#B91C1C';
+                    e.currentTarget.style.borderColor = '#B91C1C';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!reportLoading) {
+                    e.currentTarget.style.backgroundColor = '#DC2626';
+                    e.currentTarget.style.borderColor = '#DC2626';
+                  }
+                }}
+              >
+                {reportLoading ? 'Submitting...' : 'Submit Report'}
               </Button>
             </div>
           </div>

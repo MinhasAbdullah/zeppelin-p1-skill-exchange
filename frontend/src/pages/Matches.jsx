@@ -9,11 +9,13 @@ import {
   User, Star
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useChat } from '../context/ChatContext';
 import { matchesAPI } from '../services/api';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Loader from '../components/common/Loader';
 import { COLORS } from '../utils/constants';
+
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -28,10 +30,20 @@ const Matches = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // all, offer, request
-
+  const { startChat } = useChat();
   useEffect(() => {
     fetchMatches();
   }, []);
+
+  const handleMessageClick = async (e, userId) => {
+  e.stopPropagation();
+  try {
+    await startChat(userId);
+    navigate('/messages');
+  } catch (error) {
+    console.error('Error starting chat:', error);
+  }
+};
 
   const fetchMatches = async () => {
     try {
@@ -271,7 +283,7 @@ const Matches = () => {
                         </h4>
                         <div className="flex items-center gap-2 mt-1 text-xs" style={{ color: colors.textSecondary }}>
                           <User size={12} />
-                          User #{otherListing.user}
+                          {otherListing.user_name}
                         </div>
                       </div>
                     </div>
@@ -294,7 +306,7 @@ const Matches = () => {
                         <Button 
                           variant="secondary" 
                           size="sm"
-                          onClick={() => navigate(`/browse/${otherListing.id}`)}
+                          onClick={() => navigate(`/item/${otherListing.id}`)}
                         >
                           <Eye size={14} className="mr-1" />
                           View
@@ -302,7 +314,7 @@ const Matches = () => {
                         <Button 
                           variant="primary" 
                           size="sm"
-                          onClick={() => navigate(`/messages?listing=${otherListing.id}&user=${otherListing.user}`)}
+                          onClick={(e) => handleMessageClick(e, otherListing.user)}
                         >
                           <MessageCircle size={14} className="mr-1" />
                           Message

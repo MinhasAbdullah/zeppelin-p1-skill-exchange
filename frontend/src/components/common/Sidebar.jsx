@@ -103,7 +103,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'px-4'} py-4 border-b flex-shrink-0`} 
              style={{ borderColor: colors.secondary }}>
           <img 
-            src={"https://res.cloudinary.com/deiqafya2/" + user?.photo} 
+            src={user.photo ? "https://res.cloudinary.com/deiqafya2/" + user?.photo : "/src/assets/defaultpfp.png"}
             alt="User"
             className="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />

@@ -162,7 +162,7 @@ const ProfileInfo = () => {
                 <div className="relative">
                   <div className="overflow-hidden rounded-full border-4" style={{ borderColor: colors.primary }}>
                     <img 
-                      src={"https://res.cloudinary.com/deiqafya2/" + user?.photo} 
+                      src={user.photo ? "https://res.cloudinary.com/deiqafya2/" + user?.photo : "/src/assets/defaultpfp.png"} 
                       className="w-20 h-20 object-cover" 
                       alt={user?.username || 'User'} 
                     />

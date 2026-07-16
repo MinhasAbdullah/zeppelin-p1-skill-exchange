@@ -2,11 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Filter, MapPin, 
+import {
+  Filter, MapPin,
   X, MessageCircle, ThumbsUp,
   Calendar, Shield,
-  Sparkles, Code, Palette, Dumbbell, 
+  Sparkles, Code, Palette, Dumbbell,
   Languages, Wrench, Utensils, Music
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -14,7 +14,10 @@ import { listingsAPI } from '../services/api';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Loader from '../components/common/Loader';
-import {COLORS} from '../utils/constants';
+import { COLORS } from '../utils/constants';
+import { useChat } from '../context/ChatContext';
+import defaultPfp from '../assets/defaultpfp.png';
+
 
 const categories = [
   { id: 'all', label: 'All', icon: Sparkles },
@@ -56,7 +59,7 @@ function Browse() {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
+  const { startChat } = useChat();
   // Build query params
   const buildQueryParams = () => {
     const params = {};
@@ -65,7 +68,15 @@ function Browse() {
     if (sortBy) params.ordering = sortBy;
     return params;
   };
-
+  const handleMessageClick = async (e, userId) => {
+    e.stopPropagation();
+    try {
+      await startChat(userId);
+      navigate('/messages');
+    } catch (error) {
+      console.error('Error starting chat:', error);
+    }
+  };
   useEffect(() => {
     fetchListings();
   }, [selectedCategory, selectedType, sortBy]);
@@ -95,12 +106,9 @@ function Browse() {
     navigate(`/item/${id}`);
   };
 
-  const handleMessageClick = (e, id) => {
-    e.stopPropagation(); // Prevent card click
-    navigate(`/messages?listing=${id}`);
-  };
 
-  
+
+
 
   const totalPages = Math.ceil(listings.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -148,8 +156,8 @@ function Browse() {
               className="rounded-xl border px-3 py-1.5 text-sm outline-none"
               style={{
                 borderColor: colors.secondary,
-                color: colors.text,
-                backgroundColor: colors.secondaryLight
+                color: colors.white,
+                backgroundColor: colors.primary
               }}
             >
               {categories.map(cat => (
@@ -163,8 +171,8 @@ function Browse() {
               className="rounded-xl border px-3 py-1.5 text-sm outline-none"
               style={{
                 borderColor: colors.secondary,
-                color: colors.text,
-                backgroundColor: colors.secondaryLight
+                color: colors.white,
+                backgroundColor: colors.primary
               }}
             >
               {types.map(type => (
@@ -178,8 +186,8 @@ function Browse() {
               className="rounded-xl border px-3 py-1.5 text-sm outline-none"
               style={{
                 borderColor: colors.secondary,
-                color: colors.text,
-                backgroundColor: colors.secondaryLight
+                color: colors.white,
+                backgroundColor: colors.primary
               }}
             >
               {sortOptions.map(option => (
@@ -256,7 +264,7 @@ function Browse() {
                 <button
                   onClick={clearFilters}
                   className="w-full text-center text-sm font-medium py-2 border rounded-xl transition"
-                  style={{ 
+                  style={{
                     borderColor: colors.primary,
                     color: colors.primary
                   }}
@@ -309,11 +317,10 @@ function Browse() {
                   <Card hoverable>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
-                          item.type === 'offer' 
-                            ? 'bg-emerald-50 text-emerald-700' 
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${item.type === 'offer'
+                            ? 'bg-emerald-50 text-emerald-700'
                             : 'bg-blue-50 text-blue-700'
-                        }`}>
+                          }`}>
                           {item.type === 'offer' ? (
                             <ThumbsUp size={12} />
                           ) : (
@@ -321,7 +328,7 @@ function Browse() {
                           )}
                           {item.type === 'offer' ? 'Offer' : 'Request'}
                         </span>
-                        
+
                       </div>
 
                       <h3 className="text-lg font-bold mb-1.5 line-clamp-2" style={{ color: colors.text }}>
@@ -336,7 +343,7 @@ function Browse() {
                           <MapPin size={14} style={{ color: colors.primary }} />
                           {item.city || 'Unknown'}
                         </span>
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ 
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{
                           backgroundColor: colors.secondary,
                           color: colors.primary
                         }}>
@@ -346,29 +353,34 @@ function Browse() {
 
                       <div className="flex items-center justify-between mt-4 pt-3 border-t" style={{ borderColor: colors.secondary }}>
                         <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0" style={{ 
-                            background: `linear-gradient(to right, ${colors.primary}, ${colors.primaryDark})`
-                          }}>
-                            {String(item.user || 'U').charAt(0)}
+                          <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden border-2" style={{ borderColor: colors.primary }}>
+                            <img
+                              src={item.user_photo || defaultPfp}
+                              alt={item.createdby || 'User'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = defaultPfp;
+                              }}
+                            />
                           </div>
                           <div>
-                            <p className="text-sm font-medium" style={{ color: colors.text }}>
-                              User #{item.user}
+                            <p className="text-sm font-medium line-clamp-1" style={{ color: colors.text }}>
+                              {item.user_name}
                             </p>
                           </div>
                         </div>
                         {user.id != item.user && (
-                        <Button 
-                          variant="primary" 
-                          size="sm"
-                          onClick={(e) => handleMessageClick(e, item.id)}
-                        >
-                          Message
-                        </Button>)
-}
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={(e) => handleMessageClick(e, item.user)}
+                          >
+                            Message
+                          </Button>)
+                        }
                       </div>
 
-                      <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs" style={{ 
+                      <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs" style={{
                         borderColor: colors.secondary,
                         color: colors.textSecondary
                       }}>
@@ -402,7 +414,7 @@ function Browse() {
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                     className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    style={{ 
+                    style={{
                       borderColor: colors.secondary,
                       color: colors.text
                     }}
@@ -413,11 +425,10 @@ function Browse() {
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i + 1)}
-                      className={`px-3.5 py-1.5 rounded-lg text-sm transition ${
-                        currentPage === i + 1
+                      className={`px-3.5 py-1.5 rounded-lg text-sm transition ${currentPage === i + 1
                           ? 'text-white'
                           : 'border'
-                      }`}
+                        }`}
                       style={currentPage === i + 1 ? {
                         backgroundColor: colors.primary
                       } : {
@@ -432,7 +443,7 @@ function Browse() {
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                     className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    style={{ 
+                    style={{
                       borderColor: colors.secondary,
                       color: colors.text
                     }}

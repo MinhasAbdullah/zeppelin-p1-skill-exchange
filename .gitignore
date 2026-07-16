@@ -1,12 +1,15 @@
 # Backend
 backend/.env
+**/__pycache__/
+*.py[cod]
+*$py.class
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
-frontend/.env*
+frontend/.env
 frontend/*.log
 
 # Logs

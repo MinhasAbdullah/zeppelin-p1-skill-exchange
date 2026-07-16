@@ -7,8 +7,6 @@ import { COLORS } from '../../utils/constants';
 
 const SecuritySettings = () => {
   const { 
-    isPasswordModal,
-    setIsPasswordModal,
     changePassword,
     
   } = useUser();
@@ -16,7 +14,7 @@ const SecuritySettings = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+  const [isPasswordModal, setIsPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',

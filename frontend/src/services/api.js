@@ -87,6 +87,7 @@ export const listingsAPI = {
   delete: (id) => api.delete(`/listings/${id}/`),
   getMatch:(id) => api.get(`/matches/${id}/`),
   getMatches: (params) => api.get('/matches/', { params }),
+  getMyListings: () => api.get('/auth/my-listings/'),
 };
 
 export const matchesAPI = {
@@ -94,4 +95,21 @@ export const matchesAPI = {
   getMatchDetail: (id) => api.get(`/matches/${id}/`),
 };
 
+// Chat API
+export const chatAPI = {
+  getRooms: () => api.get('/chat/rooms/'),
+  getRoom: (roomId) => api.get(`/chat/rooms/${roomId}/`),
+  createRoom: (data) => api.post('/chat/rooms/', data),
+  getMessages: (roomId, page = 1, pageSize = 50) => 
+    api.get(`/chat/rooms/${roomId}/messages/?page=${page}&page_size=${pageSize}`),
+  sendMessage: (roomId, content) => 
+    api.post(`/chat/rooms/${roomId}/messages/`, { content }),
+};
+
+export const moderationAPI = {
+  reportContent: (id, data) => api.post(`/listings/${id}/report/`, data),
+  blockUser: (userId) => api.post(`/auth/block/`, {   blocked: userId  }),
+  unblockUser: (userId) => api.delete(`/auth/unblock/${userId}/`, {user_id: userId  }),
+  getBlockedUsers: () => api.get('/auth/blocked/'),
+};
 export default api;

@@ -10,10 +10,12 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Card from '../components/common/Card';
 import { COLORS } from '../utils/constants';
+import {useUser} from '../context/UserContext';
 
 const CreateListing = () => {
   const navigate = useNavigate();
   const colors  = COLORS;
+  const { user } = useUser();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +24,7 @@ const CreateListing = () => {
     title: '',
     category: '',
     description: '',
-    city: '',
+    city: user?.city || '',
     radius_km: 10,
     status: 'active'
   });
