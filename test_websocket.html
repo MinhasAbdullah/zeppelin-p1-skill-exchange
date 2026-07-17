@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat WebSocket Test Console</title>
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-glow: rgba(99, 102, 241, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+        }
+
+        header {
+            max-width: 1200px;
+            margin: 0 auto 1.5rem auto;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.connected {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            flex-grow: 1;
+            height: calc(100vh - 180px);
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Forms / Inputs */
+        .form-section {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--text-glow);
+        }
+
+        .token-input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: var(--text-main);
+            border: none;
+            border-radius: 8px;
+            padding: 0.8rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn.btn-danger {
+            background: var(--danger);
+        }
+
+        .btn.btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Log / Terminal Panel */
+        .terminal-panel {
+            flex-grow: 1;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.8);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .log-direction {
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .log-direction.in {
+            color: #38bdf8;
+        }
+
+        .log-direction.out {
+            color: #fb7185;
+        }
+
+        .log-direction.sys {
+            color: #a78bfa;
+        }
+
+        .log-message {
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+
+        /* Chat UI Container */
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background: rgba(15, 23, 42, 0.2);
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message-bubble.incoming {
+            align-self: flex-start;
+            background: rgba(51, 65, 85, 0.5);
+            border-bottom-left-radius: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .message-bubble.outgoing {
+            align-self: flex-end;
+            background: var(--primary);
+            border-bottom-right-radius: 2px;
+            box-shadow: 0 4px 12px var(--text-glow);
+        }
+
+        .msg-sender {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .message-bubble.outgoing .msg-sender {
+            color: #e0e7ff;
+        }
+
+        .msg-text {
+            word-break: break-word;
+        }
+
+        .msg-meta {
+            align-self: flex-end;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .message-bubble.outgoing .msg-meta {
+            color: #a5b4fc;
+        }
+
+        /* Typing indicator and presence notifications */
+        .typing-bubble {
+            align-self: flex-start;
+            background: rgba(51, 65, 85, 0.3);
+            color: var(--text-muted);
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-style: italic;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .presence-log {
+            align-self: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.3rem 0.8rem;
+            border-radius: 99px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Send form */
+        .chat-input-bar {
+            padding: 1rem 1.5rem;
+            background: rgba(30, 41, 59, 0.4);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .chat-input-bar input {
+            flex-grow: 1;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚡ Skill Exchange WebSocket Console</h1>
+        <div id="statusBadge" class="status-badge">
+            <span class="status-dot"></span>
+            <span id="statusText">Disconnected</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Connection and Raw Logs Console -->
+        <div class="card">
+            <div class="card-header">
+                <span>WS Connection Settings</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Local Development Mode</span>
+            </div>
+            
+            <div class="form-section">
+                <div class="input-group">
+                    <label for="wsUrl">Server WebSocket URL</label>
+                    <input type="text" id="wsUrl" value="ws://localhost:8000/ws/chat/">
+                </div>
+                
+                <div class="input-group">
+                    <label for="roomId">Room UUID</label>
+                    <input type="text" id="roomId" value="f534792d-e1b5-47eb-8697-7e0864f13c96" placeholder="Paste Chat Room UUID here">
+                </div>
+
+                <div class="input-group">
+                    <label for="jwtToken">JWT Access Token (minhasadmin)</label>
+                    <input type="text" class="token-input" id="jwtToken" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg0ODEyMDEzLCJpYXQiOjE3ODQyMDcyMTMsImp0aSI6ImI4YWJiNTEzMGM2OTQ3ZjRhM2Q0MWU2M2UzYzc5YjM1IiwidXNlcl9pZCI6IjEifQ.2otWr6hAYNg3liuviVa3HsuZkWRYBFMZojMZ6ENBqBo" placeholder="Paste authenticated User Access Token here">
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <button id="connectBtn" class="btn" style="flex-grow: 1;">Connect WebSocket</button>
+                    <button id="disconnectBtn" class="btn btn-danger" style="flex-grow: 1;" disabled>Disconnect</button>
+                </div>
+            </div>
+
+            <div class="card-header" style="border-top: 1px solid var(--border-color); border-bottom: none;">
+                <span>Live Event Logs</span>
+                <button id="clearLogsBtn" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; text-decoration: underline;">Clear</button>
+            </div>
+            
+            <div id="terminal" class="terminal-panel">
+                <div class="log-entry">
+                    <span class="log-time">[00:00:00]</span>
+                    <span class="log-direction sys">[SYS]</span>
+                    <span class="log-message">Console initialized. Fill credentials and click Connect.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat UI Visual Simulator -->
+        <div class="card">
+            <div class="card-header">
+                <span>Visual Chat View</span>
+                <span id="chattingWith" style="font-size: 0.8rem; color: var(--primary);">Inactive</span>
+            </div>
+
+            <div class="chat-container">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="presence-log" style="align-self: center;">No active chat session. Connect to load messages.</div>
+                </div>
+                
+                <div id="typingIndicator" class="typing-bubble">
+                    <span class="status-dot" style="background-color: var(--primary); box-shadow: none;"></span>
+                    <span id="typingUser">Someone</span> is typing...
+                </div>
+
+                <div class="chat-input-bar">
+                    <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+                    <button id="sendBtn" class="btn" disabled>Send</button>
+                    <button id="typingBtn" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);" disabled>Typing</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const wsUrlInput = document.getElementById('wsUrl');
+        const roomIdInput = document.getElementById('roomId');
+        const jwtTokenInput = document.getElementById('jwtToken');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        const terminal = document.getElementById('terminal');
+        const clearLogsBtn = document.getElementById('clearLogsBtn');
+        
+        const chatMessages = document.getElementById('chatMessages');
+        const chattingWith = document.getElementById('chattingWith');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const typingBtn = document.getElementById('typingBtn');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const typingUser = document.getElementById('typingUser');
+
+        let socket = null;
+        let isCurrentlyTyping = false;
+        let typingTimeout = null;
+
+        // Utility: Append to raw logger
+        function log(direction, message, type = 'sys') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            entry.innerHTML = `
+                <span class="log-time">[${time}]</span>
+                <span class="log-direction ${type}">${direction}</span>
+                <span class="log-message">${escapeHtml(message)}</span>
+            `;
+            
+            terminal.appendChild(entry);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            return text.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Connect Function
+        connectBtn.addEventListener('click', () => {
+            const baseUrl = wsUrlInput.value.trim();
+            const roomId = roomIdInput.value.trim();
+            const token = jwtTokenInput.value.trim();
+
+            if (!roomId || !token) {
+                alert('Please fill both Room UUID and JWT Token!');
+                return;
+            }
+
+            // Create connection url
+            const fullUrl = `${baseUrl}${roomId}/?token=${token}`;
+            
+            log('[CONN]', `Connecting to: ${baseUrl}${roomId}/`, 'sys');
+            
+            try {
+                socket = new WebSocket(fullUrl);
+                
+                // WS Lifecycle Handlers
+                socket.onopen = () => {
+                    statusBadge.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    messageInput.disabled = false;
+                    sendBtn.disabled = false;
+                    typingBtn.disabled = false;
+                    
+                    chatMessages.innerHTML = ''; // clear initial placeholder
+                    chattingWith.textContent = 'Room: ' + roomId.substring(0, 8) + '...';
+                    log('[OPEN]', 'Connection established successfully.', 'sys');
+
+                    // Mark messages as read automatically on open
+                    sendEvent({ type: 'mark_read' });
+                };
+
+                socket.onclose = (event) => {
+                    statusBadge.classList.remove('connected');
+                    statusText.textContent = 'Disconnected';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    messageInput.disabled = true;
+                    sendBtn.disabled = true;
+                    typingBtn.disabled = true;
+                    chattingWith.textContent = 'Inactive';
+                    typingIndicator.style.display = 'none';
+
+                    let reason = "Unknown reason";
+                    if (event.code === 4001) reason = "JWT Authentication Failed (Invalid token)";
+                    if (event.code === 4003) reason = "Forbidden (You are not a participant of this room)";
+                    if (event.code === 1006) reason = "Connection closed abnormally (Is Daphne/Redis running?)";
+
+                    log('[CLOSE]', `Disconnected (Code: ${event.code} | Reason: ${reason})`, 'sys');
+                    socket = null;
+                };
+
+                socket.onerror = (error) => {
+                    log('[ERROR]', 'WebSocket connection encountered an error.', 'sys');
+                };
+
+                socket.onmessage = (event) => {
+                    log(' IN ', event.data, 'in');
+                    handleIncomingPayload(JSON.parse(event.data));
+                };
+
+            } catch (err) {
+                log('[ERR]', err.message, 'sys');
+            }
+        });
+
+        // Disconnect
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close();
+            }
+        });
+
+        // Clear Logs
+        clearLogsBtn.addEventListener('click', () => {
+            terminal.innerHTML = '';
+        });
+
+        // Send message from UI input
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !socket) return;
+
+            const payload = {
+                type: 'chat_message',
+                content: text
+            };
+
+            sendEvent(payload);
+            messageInput.value = '';
+            
+            // stop typing indicator
+            isCurrentlyTyping = false;
+            sendEvent({ type: 'typing', is_typing: false });
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Typing triggers
+        messageInput.addEventListener('input', () => {
+            if (!socket) return;
+            if (!isCurrentlyTyping) {
+                isCurrentlyTyping = true;
+                sendEvent({ type: 'typing', is_typing: true });
+            }
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                isCurrentlyTyping = false;
+                sendEvent({ type: 'typing', is_typing: false });
+            }, 3000);
+        });
+
+        typingBtn.addEventListener('click', () => {
+            if (!socket) return;
+            isCurrentlyTyping = !isCurrentlyTyping;
+            sendEvent({ type: 'typing', is_typing: isCurrentlyTyping });
+            typingBtn.style.background = isCurrentlyTyping ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.05)';
+        });
+
+        // Helper: Send JSON payload
+        function sendEvent(obj) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const raw = JSON.stringify(obj);
+                socket.send(raw);
+                log('OUT', raw, 'out');
+            }
+        }
+
+        // Handle incoming WebSocket actions and render them in Chat UI
+        function handleIncomingPayload(data) {
+            const currentUserId = parseUserIdFromToken(jwtTokenInput.value);
+
+            if (data.type === 'message_history') {
+                chatMessages.innerHTML = '';
+                if (data.messages.length === 0) {
+                    chatMessages.innerHTML = '<div class="presence-log">No previous messages in this room.</div>';
+                }
+                data.messages.forEach(msg => appendMessageBubble(msg, currentUserId));
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            else if (data.type === 'chat_message') {
+                // remove "no messages" notice
+                const emptyNotice = chatMessages.querySelector('.presence-log');
+                if (emptyNotice && chatMessages.children.length === 1) {
+                    emptyNotice.remove();
+                }
+                appendMessageBubble(data.message, currentUserId);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            else if (data.type === 'typing_indicator') {
+                if (data.is_typing) {
+                    typingUser.textContent = data.username;
+                    typingIndicator.style.display = 'flex';
+                } else {
+                    typingIndicator.style.display = 'none';
+                }
+            }
+
+            else if (data.type === 'presence_update') {
+                const note = document.createElement('div');
+                note.className = 'presence-log';
+                note.textContent = `${data.username} is now ${data.status}`;
+                chatMessages.appendChild(note);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            else if (data.type === 'unread_update') {
+                log('[INFO]', `Unread messages count: ${data.unread_count}`, 'sys');
+            }
+        }
+
+        // Append message bubble to UI
+        function appendMessageBubble(msg, currentUserId) {
+            const isOutgoing = String(msg.sender.id) === String(currentUserId);
+            
+            const bubble = document.createElement('div');
+            bubble.className = `message-bubble ${isOutgoing ? 'outgoing' : 'incoming'}`;
+            
+            const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            bubble.innerHTML = `
+                <span class="msg-sender">${escapeHtml(msg.sender.username)}</span>
+                <span class="msg-text">${escapeHtml(msg.content)}</span>
+                <span class="msg-meta">
+                    ${timeStr} 
+                    ${isOutgoing ? (msg.is_read ? '✓✓' : '✓') : ''}
+                </span>
+            `;
+            
+            chatMessages.appendChild(bubble);
+        }
+
+        // Parse JWT payload safely to get current logged in User ID
+        function parseUserIdFromToken(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload).user_id;
+            } catch (e) {
+                return null;
+            }
+        }
+    </script>
+</body>
+</html>
