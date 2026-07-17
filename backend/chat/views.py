@@ -84,6 +84,19 @@ class ChatRoomListCreateView(generics.ListCreateAPIView):
             serializer = self.get_serializer(existing, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
 
+        # Validate: Check if any block is in place between request.user and other participants
+        from django.db.models import Q
+        from users.models import BlockedUser
+        other_participants = [pid for pid in participant_ids if pid != request.user.id]
+        if BlockedUser.objects.filter(
+            Q(blocker=request.user, blocked_id__in=other_participants) |
+            Q(blocker_id__in=other_participants, blocked=request.user)
+        ).exists():
+            return Response(
+                {'error': 'Cannot create a chat room because a block is in place between participants.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Create the new room
         room = ChatRoom.objects.create(
             match_id=match_id if match_id else None
@@ -170,4 +183,16 @@ class MessageListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         room = self._get_room()
+        
+        # Check block status before saving message
+        from django.db.models import Q
+        from users.models import BlockedUser
+        other_participants = room.participants.exclude(id=self.request.user.id)
+        if BlockedUser.objects.filter(
+            Q(blocker=self.request.user, blocked__in=other_participants) |
+            Q(blocker__in=other_participants, blocked=self.request.user)
+        ).exists():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Cannot send message: a block is in place between you and the other participant.')
+            
         serializer.save(sender=self.request.user, room=room)

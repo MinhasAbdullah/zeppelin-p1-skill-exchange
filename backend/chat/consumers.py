@@ -5,6 +5,7 @@ from django.contrib.auth.models import AnonymousUser
 
 from .models import ChatRoom, Message
 from .serializers import MessageSerializer
+from users.models import BlockedUser
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -31,6 +32,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     │ typing_indicator     │ Who is typing                    │
     │ presence_update      │ User online / offline            │
     │ unread_update        │ Unread count per room            │
+    │ block_update         │ Notifies when block status changes│
     │ error                │ Validation / server errors       │
     └──────────────────────┴──────────────────────────────────┘
     """
@@ -52,6 +54,16 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # Reject if user is not a participant of this room
         if not await self._is_participant():
             await self.close(code=4003)
+            return
+
+        # Reject if either participant has blocked the other
+        if await self._is_blocked():
+            await self.send_json({
+                'type': 'error',
+                'code': 403,
+                'message': 'You cannot chat with this user because a block is in place.',
+            })
+            await self.close(code=4004)
             return
 
         # Join the Redis broadcast group for this room
@@ -153,6 +165,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             })
             return
 
+        # Block check before every message — handles blocks applied mid-conversation
+        if await self._is_blocked():
+            await self.send_json({
+                'type': 'error',
+                'code': 403,
+                'message': 'Cannot send message: a block is in place between you and the other participant.',
+            })
+            return
+
         # Persist to PostgreSQL and get serialized payload
         serialized = await self._save_message(text)
 
@@ -248,6 +269,27 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         try:
             room = ChatRoom.objects.get(id=self.room_id)
             return room.participants.filter(id=self.user.id).exists()
+        except ChatRoom.DoesNotExist:
+            return False
+
+    @database_sync_to_async
+    def _is_blocked(self) -> bool:
+        """
+        Returns True if either participant has blocked the other.
+        Checks both directions: current user blocked other, OR other user blocked current user.
+        """
+        try:
+            room = ChatRoom.objects.prefetch_related('participants').get(id=self.room_id)
+            other_users = room.participants.exclude(id=self.user.id)
+            for other in other_users:
+                blocked = BlockedUser.objects.filter(
+                    blocker=self.user, blocked=other
+                ).exists() or BlockedUser.objects.filter(
+                    blocker=other, blocked=self.user
+                ).exists()
+                if blocked:
+                    return True
+            return False
         except ChatRoom.DoesNotExist:
             return False
 
