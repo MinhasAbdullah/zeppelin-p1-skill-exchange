@@ -13,7 +13,9 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
+import Input from '../components/common/Input';
 import { COLORS } from '../utils/constants';
+
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 }
@@ -31,6 +33,22 @@ const MyListings = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [listingToDelete, setListingToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Edit Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editListing, setEditListing] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState('');
+  const [editForm, setEditForm] = useState({
+    title: '',
+    category: '',
+    description: '',
+    city: '',
+    radius_km: 10,
+    status: 'active',
+    type: 'offer'
+  });
 
   useEffect(() => {
     fetchListings();
@@ -40,8 +58,7 @@ const MyListings = () => {
     try {
       setLoading(true);
       setError('');
-      // Get all listings and filter by user
-      const response = await listingsAPI.getAll();
+      const response = await listingsAPI.getMyListings();
       const userListings = response.data.filter(
         item => item.user === user?.id
       );
@@ -89,12 +106,65 @@ const MyListings = () => {
     }
   };
 
+  // Edit Handlers
+  const openEditModal = (listing) => {
+    setEditListing(listing);
+    setEditForm({
+      title: listing.title || '',
+      category: listing.category || '',
+      description: listing.description || '',
+      city: listing.city || '',
+      radius_km: listing.radius_km || 10,
+      status: listing.status || 'active',
+      type: listing.type || 'offer'
+    });
+    setEditError('');
+    setEditSuccess('');
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+    setEditError('');
+    setEditSuccess('');
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editListing) return;
+
+    setEditLoading(true);
+    setEditError('');
+    setEditSuccess('');
+
+    try {
+      const result = await listingsAPI.update(editListing.id, editForm);
+      if (result.status === 200 || result.status === 204 || result.success) {
+        setEditSuccess('Listing updated successfully!');
+        // Update the listing in the list
+        setListings(prev => prev.map(item => 
+          item.id === editListing.id ? { ...item, ...editForm } : item
+        ));
+        setTimeout(() => {
+          setIsEditModalOpen(false);
+          setEditSuccess('');
+          setEditLoading(false);
+        }, 1500);
+      } else {
+        setEditError(result.error || 'Failed to update listing');
+        setEditLoading(false);
+      }
+    } catch (err) {
+      setEditError('An error occurred while updating the listing');
+      setEditLoading(false);
+    }
+  };
+
   const filteredListings = listings.filter(item => {
-    // Filter by status
     if (filter === 'active' && item.status !== 'active') return false;
     if (filter === 'closed' && item.status !== 'closed') return false;
     
-    // Filter by search term
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return item.title.toLowerCase().includes(search) ||
@@ -298,7 +368,7 @@ const MyListings = () => {
                       <Eye size={16} />
                     </button>
                     <button
-                      onClick={() => navigate(`/edit-listing/${item.id}`)}
+                      onClick={() => openEditModal(item)}
                       className="p-2 rounded-lg transition hover:bg-gray-50"
                       style={{ color: colors.textSecondary }}
                       title="Edit"
@@ -362,6 +432,214 @@ const MyListings = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Listing Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditError('');
+          setEditSuccess('');
+          setEditLoading(false);
+        }}
+        title="Edit Listing"
+        size="lg"
+      >
+        <form onSubmit={handleEditSubmit}>
+          <div className="space-y-4">
+            {editError && (
+              <div className="p-3 rounded-lg text-sm" style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
+                {editError}
+              </div>
+            )}
+            {editSuccess && (
+              <div className="p-3 rounded-lg text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
+                {editSuccess}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Type
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label 
+                  className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition ${
+                    editForm.type === 'offer' ? 'border-2' : 'border'
+                  }`}
+                  style={{
+                    borderColor: editForm.type === 'offer' ? colors.primary : colors.secondary,
+                    backgroundColor: editForm.type === 'offer' ? colors.secondary : colors.white
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value="offer"
+                    checked={editForm.type === 'offer'}
+                    onChange={handleEditChange}
+                    className="hidden"
+                  />
+                  <span className="text-sm" style={{ color: colors.text }}>Offer</span>
+                </label>
+                <label 
+                  className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition ${
+                    editForm.type === 'request' ? 'border-2' : 'border'
+                  }`}
+                  style={{
+                    borderColor: editForm.type === 'request' ? colors.primary : colors.secondary,
+                    backgroundColor: editForm.type === 'request' ? colors.secondary : colors.white
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value="request"
+                    checked={editForm.type === 'request'}
+                    onChange={handleEditChange}
+                    className="hidden"
+                  />
+                  <span className="text-sm" style={{ color: colors.text }}>Request</span>
+                </label>
+              </div>
+            </div>
+
+            <Input
+              label="Title"
+              name="title"
+              placeholder="Enter title"
+              value={editForm.title}
+              onChange={handleEditChange}
+              required
+            />
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Category
+              </label>
+              <select
+                name="category"
+                value={editForm.category}
+                onChange={handleEditChange}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-all"
+                style={{
+                  borderColor: colors.secondary,
+                  color: colors.text,
+                  backgroundColor: colors.white
+                }}
+                required
+              >
+                <option value="">Select Category</option>
+                <option value="technology">Technology</option>
+                <option value="language">Language</option>
+                <option value="music">Music</option>
+                <option value="cooking">Cooking</option>
+                <option value="sports">Sports</option>
+                <option value="art">Art</option>
+                <option value="academic">Academic</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={editForm.description}
+                onChange={handleEditChange}
+                rows="4"
+                placeholder="Describe your listing"
+                className="w-full rounded-lg border px-4 py-3 text-sm outline-none transition-all resize-none"
+                style={{
+                  borderColor: colors.secondary,
+                  color: colors.text,
+                  backgroundColor: colors.white
+                }}
+                required
+              />
+            </div>
+
+            <Input
+              label="City"
+              name="city"
+              placeholder="Enter city"
+              value={editForm.city}
+              onChange={handleEditChange}
+              required
+            />
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Radius (km)
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  name="radius_km"
+                  min="5"
+                  max="50"
+                  value={editForm.radius_km}
+                  onChange={handleEditChange}
+                  className="flex-grow h-2 rounded-lg appearance-none cursor-pointer"
+                  style={{ 
+                    backgroundColor: colors.secondary,
+                    accentColor: colors.primary
+                  }}
+                />
+                <span className="text-sm font-medium" style={{ color: colors.primary }}>
+                  {editForm.radius_km} km
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text }}>
+                Status
+              </label>
+              <select
+                name="status"
+                value={editForm.status}
+                onChange={handleEditChange}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-all"
+                style={{
+                  borderColor: colors.secondary,
+                  color: colors.text,
+                  backgroundColor: colors.white
+                }}
+              >
+                <option value="active">Active</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t" style={{ borderColor: colors.secondary }}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditError('');
+                  setEditSuccess('');
+                  setEditLoading(false);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={editLoading}
+                className="flex-1"
+              >
+                {editLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </form>
       </Modal>
     </div>
   );

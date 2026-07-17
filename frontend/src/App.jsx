@@ -23,7 +23,10 @@ function App() {
         <ChatProvider>
         <Routes>
           {/* Public Routes */}
-          
+          <Route element={<MainLayout />}>
+            <Route path="/browse" element={<Browse />} />
+          <Route path="/item/:id" element={<ItemDetails />} />
+          </Route>
           
           {/* Auth Routes */}
           <Route element={<PublicRoute />}>
@@ -31,14 +34,14 @@ function App() {
          <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
+            
           </Route>
 
           {/* Protected Routes with MainLayout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
               <Route path="/profile" element={<Profile />} />
-               <Route path="/browse" element={<Browse />} />
-          <Route path="/item/:id" element={<ItemDetails />} />
+               
               <Route path="/matches" element={<Matches />} />
               <Route path="/messages" element={<Messages />} />
               {/* <Route path="/messages/:userId" element={<Messages />} /> */}
