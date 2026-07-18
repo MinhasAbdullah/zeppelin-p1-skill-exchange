@@ -103,14 +103,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'px-4'} py-4 border-b flex-shrink-0`} 
              style={{ borderColor: colors.secondary }}>
           <img 
-            src={user.photo ? "https://res.cloudinary.com/deiqafya2/" + user?.photo : "/src/assets/defaultpfp.png"}
+            src={user?.photo ? "https://res.cloudinary.com/deiqafya2/" + user?.photo : "/src/assets/defaultpfp.png"}
             alt="User"
             className="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />
           {!isCollapsed && (
             <div className="ml-3 flex-1 min-w-0">
               <p className="font-medium truncate" style={{ color: colors.text }}>
-                {user?.username || 'User'}
+                {user?.username || 'Guest User'}
               </p>
               <p className="text-sm truncate" style={{ color: colors.textSecondary }}>
                 {user?.email || 'user@email.com'}
@@ -121,7 +121,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1">
-          {navItems.map((item) => (
+          {user && navItems.map((item) => (
             <NavLink
               key={item.id}
               to={item.path}
@@ -159,6 +159,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         </nav>
 
         {/* Bottom Actions */}
+{ user &&
         <div className={`border-t flex-shrink-0`} style={{ borderColor: colors.secondary }}>
           {/* Create Listing Button */}
           <div className={`p-3 ${isCollapsed ? 'flex justify-center' : ''}`}>
@@ -196,6 +197,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             </button>
           </div>
         </div>
+        }
       </aside>
     </>
   );

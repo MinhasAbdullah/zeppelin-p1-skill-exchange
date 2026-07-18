@@ -422,7 +422,7 @@ const ItemDetails = () => {
                 </p>
 
                 <div className="mt-4 space-y-2">
-                  {!isOwner && listing.status === 'active' && (
+                  {user && !isOwner && listing.status === 'active' && (
                     <Button 
                       variant="primary" 
                       fullWidth
@@ -457,7 +457,7 @@ const ItemDetails = () => {
             </Card>
 
             {/* Report Button */}
-            {!isOwner && (
+            {user && !isOwner && (
               <button
                 className="w-full text-center text-sm hover:underline transition-colors py-2"
                 style={{ color: colors.textSecondary }}

@@ -132,6 +132,7 @@ export const ChatProvider = ({ children }) => {
         setMessages(response.data.results || []);
       } catch (error) {
         console.error('Error sending message via REST:', error);
+        alert('Failed to send message. Please try again.');
       }
     }
   };
